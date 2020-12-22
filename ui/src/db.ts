@@ -119,8 +119,6 @@ interface Player {
 
 interface Turn { }
 
-// TODO: read player from local storage
-
 interface Db {
   ws: ReconnectingWS | null;
   /** Latest returned game from the server */

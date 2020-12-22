@@ -63,7 +63,7 @@ class App extends Component<Props, State> {
         // Resize board after it is mounted.
         setTimeout(() => {
           this.board?.resize();
-        }, 500);
+        }, 200);
       } else {
         // DB has changed trigger a render
         this.setState({ evolution });
@@ -157,7 +157,7 @@ class App extends Component<Props, State> {
       return null;
     }
 
-    // TODO: show which player guessed the word right...
+    // TODO: show game history
 
     return (
       <div class={styles.overlay}>

@@ -1,9 +1,14 @@
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use log::info;
-use tokio::sync::{mpsc, Mutex};
+use serde::{Deserialize, Serialize};
+use tokio::{
+    sync::{mpsc, Mutex},
+    time::interval,
+};
 use uuid::Uuid;
 use warp::ws::Message;
 use warp::Filter;
@@ -12,17 +17,26 @@ mod errors;
 
 mod games;
 
-use games::Games;
+use games::{DrawingSegment, Game, Games, Player};
 
 pub type App = Arc<Mutex<AppState>>;
 
-type PlayerConn = mpsc::UnboundedSender<Result<Message, warp::Error>>;
+/// A reference to player connection
+#[derive(Clone)]
+pub struct PlayerConn {
+    pub id: usize,
+    pub tx: mpsc::UnboundedSender<Result<Message, warp::Error>>,
+}
 
 pub struct AppState {
     games: Games,
-    // All active websocket connections
+    /// All active websocket connections. A mapping from player id to connection reference.
     connections: HashMap<Uuid, PlayerConn>,
+    /// A mapping from player id to the time when WS connection ended.
+    exited_players: HashMap<Uuid, Instant>,
 }
+
+const REMOVE_PLAYER_AFTER: Duration = Duration::from_secs(60 * 5);
 
 // TODO: error handling
 
@@ -31,7 +45,7 @@ async fn main() {
     if env::var_os("RUST_LOG").is_none() {
         // Set `RUST_LOG=backend=debug` to see debug logs,
         // this only shows access logs.
-        env::set_var("RUST_LOG", "krokodil=info");
+        env::set_var("RUST_LOG", "krokodil=debug");
     }
 
     pretty_env_logger::init();
@@ -41,11 +55,12 @@ async fn main() {
         Err(_) => ([127, 0, 0, 1], 3030),
     };
 
-    // TODO: we need a thread that will remove players and games after a period of inactivity
     let app = Arc::new(Mutex::new(AppState {
         games: Games::new(),
         connections: HashMap::new(),
+        exited_players: HashMap::new(),
     }));
+    tokio::spawn(remove_players_job(app.clone()));
 
     let routes = filters::index()
         .or(filters::static_files())
@@ -58,6 +73,65 @@ async fn main() {
     warp::serve(routes.with(warp::log("backend")))
         .run((host, port))
         .await;
+}
+
+/// Periodically scan for exited players and remove them from games.
+async fn remove_players_job(app: App) {
+    loop {
+        interval(Duration::from_secs(30)).tick().await;
+
+        let mut remove_players = vec![];
+
+        {
+            // Prepare a list of players to remove
+            let mut app = app.lock().await;
+            let now = Instant::now();
+            for (player_id, exited_at) in &mut app.exited_players {
+                if now.duration_since(*exited_at) > REMOVE_PLAYER_AFTER {
+                    remove_players.push(player_id.clone());
+                }
+            }
+        }
+
+        let mut all_modified_games = HashMap::new();
+        {
+            // Remove players from the games
+            let mut app = app.lock().await;
+            for player_id in &remove_players {
+                log::debug!("Removing exited player {}", player_id);
+                let modified_games = app.games.remove_player(&player_id);
+                for game in modified_games {
+                    all_modified_games.insert(game.id.clone(), game);
+                }
+            }
+        }
+
+        {
+            // Notify all other players in the modified games
+            let app = app.lock().await;
+            for game in all_modified_games.values() {
+                log::debug!(
+                    "Notifying {} players in game={} about removed player",
+                    game.players.len(),
+                    game.id
+                );
+                for player in &game.players {
+                    if let Some(conn) = app.connections.get(&player.id) {
+                        let _ = conn.tx.send(message(OutgoingEvent {
+                            from_event_id: None,
+                            body: OutgoingEventBody::Game(game.clone()),
+                        }));
+                    }
+                }
+            }
+        }
+
+        // Remove exited players
+        let mut app = app.lock().await;
+        for player_id in &remove_players {
+            app.exited_players.remove(&player_id);
+        }
+    }
 }
 
 mod filters {
@@ -149,20 +223,24 @@ mod filters {
 }
 
 mod handlers {
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::{
+        collections::hash_map::Entry,
+        sync::atomic::{AtomicUsize, Ordering},
+        time::Instant,
+    };
 
-    use futures::{FutureExt, SinkExt, StreamExt};
+    use futures::{FutureExt, StreamExt};
     use log::{error, info};
-    use serde::{Deserialize, Serialize};
     use tokio::sync::mpsc;
     use uuid::Uuid;
-    use warp::http::{StatusCode, Uri};
+    use warp::http::Uri;
     use warp::ws::Message;
 
     use super::{App, PlayerConn};
-    use crate::games::Player;
-    use crate::games::{DrawingSegment, Game};
+    use crate::{message, IncomingEvent, IncomingEventBody, OutgoingEvent, OutgoingEventBody};
 
+    /// Our global unique conn id counter.
+    static NEXT_CONN_ID: AtomicUsize = AtomicUsize::new(1);
     const GAME_HTML: &str = include_str!("../ui/static/game.html");
 
     pub async fn create_game(app: App) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
@@ -193,14 +271,15 @@ mod handlers {
         maybe_player_id: Option<Uuid>,
     ) {
         let player_id = maybe_player_id.unwrap_or(Uuid::new_v4());
+        let conn_id = NEXT_CONN_ID.fetch_add(1, Ordering::Relaxed);
         if maybe_player_id.is_some() {
-            info!("Existing player {} in game {}", player_id, game_id);
+            info!("Existing player {} in game {} conn={}", player_id, game_id, conn_id);
         } else {
-            info!("New player {} in game {}", player_id, game_id);
+            info!("New player {} in game {} conn={}", player_id, game_id, conn_id);
         }
 
         // Split the socket into a sender and receive of messages.
-        let (mut ws_tx, mut ws_rx) = websocket.split();
+        let (ws_tx, mut ws_rx) = websocket.split();
 
         // Use an unbounded channel to handle buffering and flushing of messages
         // to the websocket...
@@ -213,7 +292,7 @@ mod handlers {
 
         let mut player_lifecycle = PlayerConnLifecycle {
             app: app.clone(),
-            tx,
+            conn: PlayerConn { id: conn_id, tx },
             player_id,
             new_player: maybe_player_id.is_none(),
             game_id,
@@ -240,7 +319,7 @@ mod handlers {
 
     struct PlayerConnLifecycle {
         app: App,
-        tx: PlayerConn,
+        conn: PlayerConn,
         player_id: Uuid,
         new_player: bool,
         game_id: String,
@@ -250,14 +329,16 @@ mod handlers {
         /// Add our player to the game and to the known connections. Then send game info
         async fn init(&mut self) {
             let mut app = self.app.lock().await;
-            // TODO: a single player might have multiple connections
-            app.connections.insert(self.player_id, self.tx.clone());
+            // Replace existing connection if there were. We support running game in a single tab only.
+            app.connections.insert(self.player_id, self.conn.clone());
+            app.exited_players.remove(&self.player_id);
 
             let (game, player) = app.games.add_player(&self.game_id, self.player_id.clone());
 
             if self.new_player {
                 // Send this player ids only if it was new
-                self.tx
+                self.conn
+                    .tx
                     .send(message(OutgoingEvent {
                         from_event_id: None,
                         body: OutgoingEventBody::YouAre { player },
@@ -266,7 +347,8 @@ mod handlers {
             }
 
             // Send game info
-            self.tx
+            self.conn
+                .tx
                 .send(message(OutgoingEvent {
                     from_event_id: None,
                     body: OutgoingEventBody::Game(game.clone()),
@@ -275,7 +357,8 @@ mod handlers {
 
             // Send current drawing
             game.iter_drawing(|segment| {
-                self.tx
+                self.conn
+                    .tx
                     .send(message(OutgoingEvent {
                         from_event_id: None,
                         body: OutgoingEventBody::AddDrawingSegment(segment.clone()),
@@ -307,7 +390,8 @@ mod handlers {
 
             match event.body {
                 IncomingEventBody::Ping => {
-                    self.tx
+                    self.conn
+                        .tx
                         .send(message(OutgoingEvent {
                             from_event_id: None,
                             body: OutgoingEventBody::Pong,
@@ -384,7 +468,7 @@ mod handlers {
                         let game = app.games.find_mut(&self.game_id).expect("Game");
                         if !game.guess_word(&self.player_id, &word) {
                             // Notify wrong guess
-                            let _ = self.tx.send(message(OutgoingEvent {
+                            let _ = self.conn.tx.send(message(OutgoingEvent {
                                 from_event_id: event.event_id,
                                 body: OutgoingEventBody::WrongGuess {},
                             }));
@@ -405,11 +489,25 @@ mod handlers {
         }
 
         async fn disconnected(&mut self) {
-            // Remove player connection
-            self.app.lock().await.connections.remove(&self.player_id);
+            // Remove player connection that is the same as this one
+            let mut app = self.app.lock().await;
+            if let Entry::Occupied(e) = app.connections.entry(self.player_id) {
+                if e.get().id == self.conn.id {
+                    log::debug!(
+                        "Exiting player {} conn={}",
+                        self.player_id,
+                        self.conn.id
+                    );
+                    e.remove();
+                }
+            }
+            app.exited_players.insert(self.player_id, Instant::now());
 
-            log::debug!("Player {} disconnected", self.player_id);
-            // TODO: schedule player to be removed from the game
+            log::debug!(
+                "Player {} disconnected conn={}",
+                self.player_id,
+                self.conn.id
+            );
         }
 
         async fn notify_all(&self, event: OutgoingEvent) {
@@ -417,8 +515,8 @@ mod handlers {
             let game = app.games.find(&self.game_id).expect("Game");
 
             for player in &game.players {
-                if let Some(tx) = app.connections.get(&player.id) {
-                    let _ = tx.send(message(event.clone()));
+                if let Some(conn) = app.connections.get(&player.id) {
+                    let _ = conn.tx.send(message(event.clone()));
                 }
             }
         }
@@ -433,68 +531,68 @@ mod handlers {
                     continue;
                 }
 
-                if let Some(tx) = app.connections.get(&player.id) {
-                    let _ = tx.send(message(event.clone()));
+                if let Some(conn) = app.connections.get(&player.id) {
+                    let _ = conn.tx.send(message(event.clone()));
                 }
             }
         }
     }
+}
 
-    fn message(response: impl Serialize) -> Result<Message, warp::Error> {
-        let text = serde_json::to_string(&response).expect("Serialize WS message");
-        Ok(Message::text(&text))
-    }
+fn message(response: impl Serialize) -> Result<Message, warp::Error> {
+    let text = serde_json::to_string(&response).expect("Serialize WS message");
+    Ok(Message::text(&text))
+}
 
-    /// IncomingEvent represents every possible incoming message
-    #[derive(Debug, Deserialize)]
+/// IncomingEvent represents every possible incoming message
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IncomingEvent {
+    pub event_id: Option<String>,
+    pub body: IncomingEventBody,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "camelCase")]
+enum IncomingEventBody {
+    AddDrawingSegment(DrawingSegment),
     #[serde(rename_all = "camelCase")]
-    struct IncomingEvent {
-        pub event_id: Option<String>,
-        pub body: IncomingEventBody,
-    }
+    RemoveDrawingSegment {
+        segment_id: String,
+    },
+    SubmitWord {
+        word: String,
+    },
+    GuessWord {
+        word: String,
+    },
+    Ping,
+}
 
-    #[derive(Debug, Deserialize)]
-    #[serde(tag = "type")]
-    #[serde(rename_all = "camelCase")]
-    enum IncomingEventBody {
-        AddDrawingSegment(DrawingSegment),
-        #[serde(rename_all = "camelCase")]
-        RemoveDrawingSegment {
-            segment_id: String,
-        },
-        SubmitWord {
-            word: String,
-        },
-        GuessWord {
-            word: String,
-        },
-        Ping,
-    }
+/// OutgoingEvent represents every possible outgoing message
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct OutgoingEvent {
+    pub from_event_id: Option<String>,
+    pub body: OutgoingEventBody,
+}
 
-    /// OutgoingEvent represents every possible outgoing message
-    #[derive(Serialize, Clone)]
+#[derive(Serialize, Clone)]
+#[serde(tag = "type")]
+#[serde(rename_all = "camelCase")]
+enum OutgoingEventBody {
+    Game(Game),
+    AddDrawingSegment(DrawingSegment),
     #[serde(rename_all = "camelCase")]
-    struct OutgoingEvent {
-        pub from_event_id: Option<String>,
-        pub body: OutgoingEventBody,
-    }
-
-    #[derive(Serialize, Clone)]
-    #[serde(tag = "type")]
+    RemoveDrawingSegment {
+        segment_id: String,
+    },
     #[serde(rename_all = "camelCase")]
-    enum OutgoingEventBody {
-        Game(Game),
-        AddDrawingSegment(DrawingSegment),
-        #[serde(rename_all = "camelCase")]
-        RemoveDrawingSegment {
-            segment_id: String,
-        },
-        #[serde(rename_all = "camelCase")]
-        YouAre {
-            player: Player,
-        },
-        WrongGuess {},
-        ClearDrawing {},
-        Pong,
-    }
+    YouAre {
+        player: Player,
+    },
+    WrongGuess {},
+    ClearDrawing {},
+    Pong,
 }

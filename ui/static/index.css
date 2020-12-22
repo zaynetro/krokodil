@@ -1,0 +1,10 @@
+main {
+    max-width: 600px;
+    padding: 10px 15px;
+    margin: 0 auto;
+}
+
+button {
+    padding: 7px 14px;
+    font-size: 16px;
+}

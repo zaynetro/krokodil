@@ -30,7 +30,8 @@ Contains of
     * Alternatively I can simply show how the active player sees canvas
 * [x] Figure out what is wrong with my Typescript/preact setup
 * [x] Use personal email address in Git
-* [ ] Test mobile device
+* [x] Test mobile device
+* [ ] Tests
 
 
 References:

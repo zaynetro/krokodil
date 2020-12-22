@@ -34,7 +34,7 @@ const GuessWord = (props: Props) => {
           onChange={(e) => {
             const word = (e.target as HTMLInputElement).value || '';
             setWord(word);
-            if (word!.length) {
+            if (!word.length) {
               setError('');
             }
           }}
