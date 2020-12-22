@@ -1,0 +1,9 @@
+{
+  "name": "krokodil",
+  "description": "We need this file cause heroku's buildpack looks for the file in the root",
+  "cacheDirectories": ["ui/node_modules"],
+  "version": "0.1.0",
+  "scripts": {
+    "postinstall": "cd ui && npm install && npm run build"
+  }
+}

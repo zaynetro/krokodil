@@ -1,0 +1,29 @@
+.guess {
+    margin-top: 10px;
+}
+
+.guess label {
+    display: flex;
+}
+
+.guess span {
+    padding-top: 8px;
+}
+
+.guess input {
+    margin-left: 10px;
+    padding: 7px;
+    font-size: 16px;
+    flex-grow: 2;
+    transition: background-color 0.3s;
+}
+
+.guess input.error {
+    background-color: #ffbebe;
+}
+
+.guess button {
+    margin-left: 5px;
+    padding: 7px 10px;
+    font-size: 16px;
+}

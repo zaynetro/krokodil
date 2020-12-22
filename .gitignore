@@ -1,0 +1,11 @@
+# Dependencies
+ui/node_modules
+
+# Bundles
+ui/dist
+
+# Added by cargo
+target
+
+# Typescript language server
+.log

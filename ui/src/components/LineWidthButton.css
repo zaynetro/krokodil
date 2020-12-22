@@ -1,0 +1,20 @@
+
+.lineWidth {
+    margin: 5px;
+    border: 5px solid #ddd;
+    width: 30px;
+    height: 30px;
+    transition: border-color 0.3s;
+    cursor: pointer;
+}
+
+.selected {
+    border-color: #999;
+    border-style: inset;
+}
+
+.lineWidth > span {
+    display: block;
+    width: 100%;
+    background-color: #666;
+}
