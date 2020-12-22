@@ -91,7 +91,7 @@ class App extends Component<Props, State> {
 
   render() {
     return (
-      <div>
+      <div class={styles.app}>
         <h1>
           <a href="/">Krokodil</a>
         </h1>
@@ -140,12 +140,9 @@ class App extends Component<Props, State> {
           </div>
         </div>
 
-        <canvas
-          ref={this.setBoardRef}
-          class={styles.board}
-          width={500}
-          height={600}>
-        </canvas>
+        <div class={styles.board}>
+          <canvas ref={this.setBoardRef} width={500}></canvas>
+        </div>
 
         {!this.isPlayerDrawing() && (
           <GuessWord onGuess={(word) => db.guessWord(word)} />

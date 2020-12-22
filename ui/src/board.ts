@@ -163,15 +163,20 @@ class Board {
   }
 
   /**
-   * Resize Canvas to fill full width
+   * Resize Canvas to fill parent
    */
   resize() {
     const width = this.canvas.parentElement?.clientWidth;
+    const height = this.canvas.parentElement?.clientHeight;
     if (width && width > 0) {
-      // TODO: also set height
       this.canvas.width = width;
-      this.redraw();
     }
+
+    if (height && height > 0) {
+      this.canvas.height = height;
+    }
+
+    this.redraw();
   }
 
   /**

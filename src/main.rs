@@ -24,6 +24,8 @@ pub struct AppState {
     connections: HashMap<Uuid, PlayerConn>,
 }
 
+// TODO: error handling
+
 #[tokio::main]
 async fn main() {
     if env::var_os("RUST_LOG").is_none() {
