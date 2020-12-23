@@ -20,9 +20,6 @@ Contains of
 * [x] Guess a word
     * All other players can guess a word
     * Player take turns in order
-* [ ] Show how many words each player guessed right and wrong
-    * Some basic statistics like PlayerA (5/6)
-    * Show previously guessed words
 * [x] Sync drawing across devices
     * Show drawing for all players 
 * [x] How to find a common screen size?
@@ -33,6 +30,12 @@ Contains of
 * [x] Use personal email address in Git
 * [x] Test mobile device
 * [ ] Tests
+
+* [ ] Get feedback
+* [ ] Improve styling and colors
+* [ ] Show how many words each player guessed right and wrong
+    * Some basic statistics like PlayerA (5/6)
+    * Show previously guessed words
 
 
 References:
