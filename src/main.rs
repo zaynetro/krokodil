@@ -177,7 +177,8 @@ mod filters {
             .and_then(handlers::game)
             .with(reply::header(
                 header::CONTENT_SECURITY_POLICY,
-                "default-src 'self'",
+                // We allow websocket connections explicitly because ios otherwise will not work
+                "default-src 'self' ws: wss:",
             ))
     }
 
