@@ -77,7 +77,7 @@ impl Game {
             ref mut drawing, ..
         } = &mut self.stage
         {
-            drawing.push(segment);
+            drawing.segments.push(segment);
         }
     }
 
@@ -87,20 +87,23 @@ impl Game {
             ref mut drawing, ..
         } = &mut self.stage
         {
-            drawing.retain(|s| s.id != segment_id);
+            drawing.segments.retain(|s| s.id != segment_id);
         }
     }
 
     /// Submit a word to draw. Transitions to drawing stage if this player was allowed to do that.
     /// Return true if transitioned.
-    pub fn submit_word(&mut self, submitting_player_id: &Uuid, word: String) -> bool {
+    pub fn submit_word(&mut self, submitting_player_id: &Uuid, word: String, canvas: CanvasSize) -> bool {
         match self.stage {
             GameStage::PlayerChoosing { player_id } if submitting_player_id == &player_id => {
                 // continue
                 self.stage = GameStage::PlayerDrawing {
                     player_id,
                     word: word.trim().to_string(),
-                    drawing: vec![],
+                    drawing: Drawing {
+                        canvas,
+                        segments: vec![],
+                    },
                 };
                 true
             }
@@ -133,14 +136,14 @@ impl Game {
     /// Iterate over drawing segments if there is a drawing
     pub fn iter_drawing(&self, cb: impl Fn(&DrawingSegment)) {
         if let GameStage::PlayerDrawing { drawing, .. } = &self.stage {
-            for segment in drawing {
-                cb(&segment);
+            for segment in &drawing.segments {
+                cb(segment);
             }
         }
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "type")]
 enum GameStage {
@@ -154,27 +157,33 @@ enum GameStage {
         player_id: Uuid,
         #[serde(skip)]
         word: String,
-        #[serde(skip)]
-        drawing: Vec<DrawingSegment>,
+        drawing: Drawing,
     },
 }
 
-// Implement custom Clone to skip cloning drawing
-impl Clone for GameStage {
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Drawing {
+    pub canvas: CanvasSize,
+    #[serde(skip)]
+    pub segments: Vec<DrawingSegment>,
+}
+
+// Implement custom Clone to skip cloning segments
+impl Clone for Drawing {
     fn clone(&self) -> Self {
-        match self {
-            GameStage::PlayerChoosing { player_id } => GameStage::PlayerChoosing {
-                player_id: player_id.clone(),
-            },
-            GameStage::PlayerDrawing {
-                player_id, word, ..
-            } => GameStage::PlayerDrawing {
-                player_id: player_id.clone(),
-                word: word.clone(),
-                drawing: vec![],
-            },
+        Self {
+            canvas: self.canvas.clone(),
+            segments: vec![],
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CanvasSize {
+    pub width: u32,
+    pub height: u32,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -319,6 +328,7 @@ mod tests {
         let player_id = Uuid::new_v4();
         let player_id_2 = Uuid::new_v4();
         let word = "Apple".to_string();
+        let canvas = CanvasSize { width: 100, height: 100, };
 
         {
             // Create a game
@@ -345,7 +355,7 @@ mod tests {
             // Submit word as wrong player
             let game = games.find_mut(&game_id);
             assert!(game.is_some());
-            let res = game.unwrap().submit_word(&player_id_2, word.clone());
+            let res = game.unwrap().submit_word(&player_id_2, word.clone(), canvas.clone());
             assert_eq!(false, res);
         }
 
@@ -354,7 +364,7 @@ mod tests {
             let game = games.find_mut(&game_id);
             assert!(game.is_some());
             let game = game.unwrap();
-            let res = game.submit_word(&player_id, word.clone());
+            let res = game.submit_word(&player_id, word.clone(), canvas.clone());
             assert!(res);
             match game.stage {
                 GameStage::PlayerDrawing {

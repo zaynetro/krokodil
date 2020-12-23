@@ -6,7 +6,7 @@
  * - https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Applying_styles_and_colors
  */
 
-import db, { Point, Color } from './db';
+import db, { Point, Color, CanvasSize } from './db';
 
 interface MousePosition {
   clientX: number;
@@ -22,6 +22,11 @@ class Board {
   private currentPoints: Point[] = [];
   /** Only one player is allowed to draw at a time */
   private disabled = true;
+  /** Original drawing size. We use this to scale coordinates up or down. */
+  private originalSize: CanvasSize = {
+    width: 100,
+    height: 100,
+  };
 
   color: Color = Color.Black;
   lineWidth = 2;
@@ -60,15 +65,22 @@ class Board {
   redraw() {
     this.setStyles();
     this.clean();
+
+    const size = this.size;
+    const orig = this.originalSize;
+    // Canvas should always be square shape
+    const scale = size.width / orig.width;
+
     for (let segment of db.drawingSegments()) {
       this.ctx.strokeStyle = segment.stroke;
       this.ctx.lineWidth = segment.lineWidth;
       this.ctx.beginPath();
       segment.points.forEach((point, i) => {
+        // We translate original coordinates to ours
         if (i == 0) {
-          this.ctx.moveTo(point.x, point.y);
+          this.ctx.moveTo(scale * point.x, scale * point.y);
         } else {
-          this.ctx.lineTo(point.x, point.y);
+          this.ctx.lineTo(scale * point.x, scale * point.y);
         }
       });
       this.ctx.stroke();
@@ -87,6 +99,32 @@ class Board {
    */
   disable() {
     this.disabled = true;
+  }
+
+  /**
+   * Return current canvas size
+   */
+  get size(): CanvasSize {
+    const parent = this.canvas.parentElement;
+    if (!parent) {
+      return {
+        width: 0,
+        height: 0,
+      };
+    }
+
+    const width = parent.clientWidth;
+    const height = parent.clientHeight;
+    const size = Math.min(width, height);
+
+    return {
+      width: size,
+      height: size,
+    };
+  }
+
+  setOriginalSize(size: CanvasSize) {
+    this.originalSize = size;
   }
 
   /**
@@ -163,17 +201,16 @@ class Board {
   }
 
   /**
-   * Resize Canvas to fill parent
+   * Resize Canvas to fill parent in square shape.
    */
   resize() {
-    const width = this.canvas.parentElement?.clientWidth;
-    const height = this.canvas.parentElement?.clientHeight;
-    if (width && width > 0) {
-      this.canvas.width = width;
+    const size = this.size;
+    if (size.width > 0) {
+      this.canvas.width = size.width;
     }
 
-    if (height && height > 0) {
-      this.canvas.height = height;
+    if (size.height > 0) {
+      this.canvas.height = size.height;
     }
 
     this.redraw();

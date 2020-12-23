@@ -17,7 +17,10 @@ const options = [{
   percentage: 50,
 }, {
   width: 20,
-  percentage: 80,
+  percentage: 75,
+}, {
+  width: 50,
+  percentage: 100,
 }];
 
 const LineWidthPicker = (props: Props) => (

@@ -2,9 +2,15 @@
 .colorPicker {
     list-style-type: none;
     display: flex;
+    flex-wrap: wrap;
     margin: 0;
     padding: 0;
+    flex-direction: column;
 }
 
-.colorPicker > li {
+@media (max-width: 600px) {
+    .colorPicker {
+        margin: 5px 0;
+        flex-direction: row;
+    }
 }

@@ -31,6 +31,7 @@ class App extends Component<Props, State> {
 
   setBoardRef = (canvas: HTMLCanvasElement | null) => {
     this.board = new Board(canvas!);
+    this.updateBoard();
   }
 
   undo = () => {
@@ -64,21 +65,31 @@ class App extends Component<Props, State> {
         setTimeout(() => {
           this.board?.resize();
         }, 200);
-      } else {
-        // DB has changed trigger a render
-        this.setState({ evolution });
-        this.board?.redraw();
-        if (this.isPlayerDrawing()) {
-          this.board?.enable();
-        } else {
-          this.board?.disable();
-        }
       }
+
+      // DB has changed trigger a render
+      this.setState({ evolution });
+      this.updateBoard();
     });
   }
 
   componentWillUnmount() {
     db.disconnect();
+  }
+
+  updateBoard() {
+    if (this.isPlayerDrawing()) {
+      this.board?.enable();
+    } else {
+      this.board?.disable();
+    }
+
+    const game = db.game();
+    if (game?.stage.type === 'playerDrawing') {
+      this.board?.setOriginalSize(game.stage.drawing.canvas);
+    }
+
+    this.board?.redraw();
   }
 
   /**
@@ -94,6 +105,12 @@ class App extends Component<Props, State> {
       <div class={styles.app}>
         <h1>
           <a href="/">Krokodil</a>
+          {!!this.state.error && (
+            <>
+              :
+              <span class={styles.error}>{this.state.error}</span>
+            </>
+          )}
         </h1>
 
         {this.state.connecting
@@ -104,14 +121,8 @@ class App extends Component<Props, State> {
   }
 
   renderBody() {
-    if (this.state.error) {
-      return (
-        <div class={styles.error}>{this.state.error.message}</div>
-      );
-    }
-
     return (
-      <>
+      <main>
         {this.renderOverlay()}
 
         <div class={styles.toolbox}>
@@ -141,13 +152,13 @@ class App extends Component<Props, State> {
         </div>
 
         <div class={styles.board}>
-          <canvas ref={this.setBoardRef} width={500}></canvas>
+          <canvas ref={this.setBoardRef}></canvas>
         </div>
 
         {!this.isPlayerDrawing() && (
           <GuessWord onGuess={(word) => db.guessWord(word)} />
         )}
-      </>
+      </main>
     )
   }
 
@@ -169,7 +180,7 @@ class App extends Component<Props, State> {
           {game.stage.playerId === db.player()?.id ? (
             <PickWord onChoose={(word) => {
               if (word.length) {
-                db.submitWord(word);
+                db.submitWord(word, this.board!.size);
               }
             }} />
           ) : (

@@ -17,7 +17,7 @@ mod errors;
 
 mod games;
 
-use games::{DrawingSegment, Game, Games, Player};
+use games::{CanvasSize, DrawingSegment, Game, Games, Player};
 
 pub type App = Arc<Mutex<AppState>>;
 
@@ -434,11 +434,11 @@ mod handlers {
                     log::debug!("Removed drawing segment to other players notified");
                 }
 
-                IncomingEventBody::SubmitWord { word } => {
+                IncomingEventBody::SubmitWord { word, canvas } => {
                     let game = {
                         let mut app = self.app.lock().await;
                         let game = app.games.find_mut(&self.game_id).expect("Game");
-                        if !game.submit_word(&self.player_id, word) {
+                        if !game.submit_word(&self.player_id, word, canvas) {
                             // Return when game wasn't changed
                             return;
                         }
@@ -563,6 +563,7 @@ enum IncomingEventBody {
     },
     SubmitWord {
         word: String,
+        canvas: CanvasSize,
     },
     GuessWord {
         word: String,

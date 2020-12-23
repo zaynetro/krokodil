@@ -25,9 +25,10 @@ Contains of
     * Show previously guessed words
 * [x] Sync drawing across devices
     * Show drawing for all players 
-* [ ] How to find a common screen size?
+* [x] How to find a common screen size?
     * I want to find some common canvas size so that it will be displayed the same for all players
     * Alternatively I can simply show how the active player sees canvas
+    * Just use a square everywhere
 * [x] Figure out what is wrong with my Typescript/preact setup
 * [x] Use personal email address in Git
 * [x] Test mobile device

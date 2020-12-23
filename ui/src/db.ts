@@ -61,6 +61,12 @@ interface DeleteDrawingSegment {
 interface SubmitWord {
   type: MessageType.SubmitWord;
   word: string;
+  canvas: CanvasSize;
+}
+
+export interface CanvasSize {
+  width: number;
+  height: number;
 }
 
 interface GuessWord {
@@ -110,6 +116,9 @@ interface PlayerChoosing {
 interface PlayerDrawing {
   type: 'playerDrawing',
   playerId: number;
+  drawing: {
+    canvas: CanvasSize;
+  };
 }
 
 interface Player {
@@ -320,7 +329,7 @@ export default {
     };
 
     ws.onerror = (e) => {
-      onError(new Error(e.toString()));
+      console.error('Connection error event', e);
     };
 
     ws.onreconnect = (tries) => {
@@ -381,36 +390,10 @@ export default {
   },
 
   /**
-   * Return a list of drawing segments. We combine segments that were not yet synced
-   * with the ones that are known to the server.
+   * Return a list of drawing segments.
    */
-  drawingSegments: () => {
-    const events = db.pending;
-    const local: DrawingSegment[] = [];
-    const removed: Set<String> = new Set();
-
-    for (let e of events) {
-      switch (e.body.type) {
-        case MessageType.AddDrawingSegment:
-          local.push(e.body);
-          break;
-
-        case MessageType.RemoveDrawingSegment:
-          removed.add(e.body.segmentId);
-          break;
-      }
-    }
-
-    const saved: DrawingSegment[] = [];
-    for (let segment of db.drawing.values()) {
-      if (removed.has(segment.id)) {
-        continue;
-      }
-
-      saved.push(segment);
-    }
-
-    return saved.concat(local);
+  drawingSegments: (): DrawingSegment[] => {
+    return [...db.drawing.values()];
   },
 
   /**
@@ -426,12 +409,13 @@ export default {
   /**
    * Submit a word to draw.
    */
-  submitWord: (word: string) => {
+  submitWord: (word: string, canvas: CanvasSize) => {
     scheduleMessage(Object.freeze({
       eventId: eventId(),
       body: {
         type: MessageType.SubmitWord,
         word,
+        canvas,
       },
     }));
   },

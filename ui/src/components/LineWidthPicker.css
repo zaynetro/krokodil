@@ -3,4 +3,12 @@
     display: flex;
     margin: 0;
     padding: 0;
+    flex-direction: column;
+}
+
+@media (max-width: 600px) {
+    .linePicker {
+        margin: 5px 0;
+        flex-direction: row;
+    }
 }
