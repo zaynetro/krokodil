@@ -39,7 +39,7 @@ Contains of
 * [ ] Add submit drawing button
 * [x] Ask for help with a word
     * Atm it is impossible to continue if you don't know the word
-* [ ] Fail after X failed attempts
+* [ ] Fail after 2 failed attempts
 * [ ] Allow changing nickname
 
 

@@ -206,7 +206,7 @@ class App extends Component<Props, State> {
               <ol>
                 {game.history
                   .map((turn, i) => (
-                    <li key={i}>{turn.word} (Guessed by {turn.playerGuessed?.nickname || 'unknown'})</li>
+                    <li key={i}>{turn.word} (Guessed by {turn.playerGuessed?.nickname || 'no one'})</li>
                   ))}
               </ol>
             </div>
