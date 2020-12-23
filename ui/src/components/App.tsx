@@ -101,17 +101,26 @@ class App extends Component<Props, State> {
   }
 
   render() {
+    const player = db.player();
     return (
       <div class={styles.app}>
-        <h1>
-          <a href="/">Krokodil</a>
-          {!!this.state.error && (
-            <>
-              :
+        <header>
+          <h1>
+            <a href="/">Krokodil</a>
+            {!!this.state.error && (
+              <>
+                :
               <span class={styles.error}>{this.state.error}</span>
-            </>
+              </>
+            )}
+          </h1>
+
+          {!!player && (
+            <h2>
+              You are: {player.nickname}
+            </h2>
           )}
-        </h1>
+        </header>
 
         {this.state.connecting
           ? this.renderSpinner()
@@ -170,7 +179,8 @@ class App extends Component<Props, State> {
       return null;
     }
 
-    // TODO: show game history
+    const choosingPlayer = game.players.find((p) => p.id === game.stage.playerId);
+    const choosingNickname = choosingPlayer ? `Player ${choosingPlayer.nickname}` : 'Other player';
 
     return (
       <div class={styles.overlay}>
@@ -186,8 +196,33 @@ class App extends Component<Props, State> {
               }
             }} />
           ) : (
-              <label>Other player is choosing a word.</label>
+              <label>{choosingNickname} is choosing a word.</label>
             )}
+
+          {!!game.history.length && (
+            <div class={styles.history}>
+              <h3>History:</h3>
+
+              <ol>
+                {game.history
+                  .map((turn, i) => (
+                    <li key={i}>{turn.word} (Guessed by {turn.playerGuessed?.nickname || 'unknown'})</li>
+                  ))}
+              </ol>
+            </div>
+          )}
+
+          <div class={styles.players}>
+            <h3>Other players:</h3>
+
+            <ul>
+              {game.players
+                .filter((p) => p.id !== db.player()?.id)
+                .map((player) => (
+                  <li key={player.id}>{player.nickname}</li>
+                ))}
+            </ul>
+          </div>
         </div>
       </div>
     );

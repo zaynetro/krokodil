@@ -4,8 +4,17 @@
     height: 100%;
 }
 
+header {
+    display: flex;
+    justify-content: space-between;
+}
+
 h1 {
     margin: 10px 0;
+}
+
+header h2 {
+    margin: 14px 0;
 }
 
 h1 a {
@@ -83,7 +92,7 @@ main {
 }
 
 .overlay {
-    position: fixed;
+    position: absolute;
     top: 0;
     right: 0;
     bottom: 0;
@@ -103,4 +112,9 @@ main {
 
 .overlayContent label {
     font-size: 20px;
+}
+
+.history,
+.players {
+    margin-top: 30px;
 }

@@ -33,15 +33,14 @@ Contains of
 
 * [ ] Get feedback
 * [ ] Improve styling and colors
-* [ ] Show how many words each player guessed right and wrong
-    * Some basic statistics like PlayerA (5/6)
-    * Show previously guessed words
+* [x] Show previously guessed words
 * [ ] Redirect to https on Heroku
     * https://help.heroku.com/J2R1S4T8/can-heroku-force-an-application-to-use-ssl-tls
 * [ ] Add submit drawing button
 * [x] Ask for help with a word
     * Atm it is impossible to continue if you don't know the word
-* [ ] Allow giving up
+* [ ] Fail after X failed attempts
+* [ ] Allow changing nickname
 
 
 ## Build packs

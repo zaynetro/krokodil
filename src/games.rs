@@ -126,7 +126,17 @@ impl Game {
             GameStage::PlayerDrawing { word, .. }
                 if word.to_lowercase() == guess.to_lowercase() =>
             {
-                // TODO: populate history
+                // Populate history
+                self.history.push(Turn {
+                    word: word.clone(),
+                    player_guessed: self
+                        .players
+                        .iter()
+                        .find(|p| &p.id == guessing_player_id)
+                        .cloned(),
+                });
+
+                // Go to next stage
                 self.stage = GameStage::PlayerChoosing {
                     player_id: guessing_player_id.clone(),
                 };
@@ -187,6 +197,7 @@ enum GameStage {
         #[serde(skip)]
         word: String,
         drawing: Drawing,
+        // TODO: keep track of guess attempts per player
     },
 }
 
@@ -284,16 +295,21 @@ impl Games {
         self.pending_ids.contains(game_id) || self.rooms.contains_key(game_id)
     }
 
-    fn new_player(player_id: Uuid) -> Player {
+    fn new_player(player_id: Uuid, nickname: Option<String>) -> Player {
         Player {
             id: player_id,
-            nickname: rand_str(3),
+            nickname: nickname.unwrap_or_else(|| rand_str(4).to_lowercase()),
         }
     }
 
     /// Adds a player to existing game or creates a game
-    pub fn add_player(&mut self, game_id: &str, player_id: Uuid) -> (&Game, Player) {
-        let player = Self::new_player(player_id);
+    pub fn add_player(
+        &mut self,
+        game_id: &str,
+        player_id: Uuid,
+        nickname: Option<String>,
+    ) -> (&Game, Player) {
+        let player = Self::new_player(player_id, nickname);
         let game = self
             .rooms
             .entry(game_id.to_string())
@@ -364,7 +380,7 @@ mod tests {
 
         {
             // Create a game
-            let (game, player) = games.add_player(&game_id, player_id.clone());
+            let (game, player) = games.add_player(&game_id, player_id.clone(), None);
             assert_eq!(player_id, player.id, "player id");
             assert_eq!(1, game.players.len(), "players in the game");
             match game.stage {
@@ -379,7 +395,7 @@ mod tests {
 
         {
             // Add another player
-            let (game, _) = games.add_player(&game_id, player_id_2.clone());
+            let (game, _) = games.add_player(&game_id, player_id_2.clone(), None);
             assert_eq!(2, game.players.len(), "players in the game");
         }
 

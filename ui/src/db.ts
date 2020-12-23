@@ -137,7 +137,10 @@ interface Player {
   nickname: number;
 }
 
-interface Turn { }
+interface Turn {
+  word: string;
+  playerGuessed?: Player;
+}
 
 interface Db {
   ws: ReconnectingWS | null;
@@ -273,7 +276,7 @@ export default {
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
     let url = `${protocol}://${host}/sync?game_id=${gameId}`;
     if (db.player) {
-      url += `&player_id=${db.player.id}`;
+      url += `&player_id=${db.player.id}&nickname=${encodeURIComponent(db.player.nickname)}`;
     }
     const ws = new ReconnectingWS(url);
     db.ws = ws;

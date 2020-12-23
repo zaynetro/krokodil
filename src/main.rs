@@ -137,10 +137,10 @@ async fn remove_players_job(app: App) {
 mod filters {
     use std::convert::Infallible;
 
-    use serde::Deserialize;
-    use uuid::Uuid;
     use warp::http::header;
     use warp::{filters::reply, Filter};
+
+    use crate::SyncQuery;
 
     use super::{errors, handlers, App};
 
@@ -190,9 +190,7 @@ mod filters {
             .and_then(require_game_id)
             .and(warp::ws())
             .map(|(app, query): (App, SyncQuery), ws: warp::ws::Ws| {
-                ws.on_upgrade(move |websocket| {
-                    handlers::sync(websocket, app, query.game_id, query.player_id)
-                })
+                ws.on_upgrade(move |websocket| handlers::sync(websocket, app, query))
             })
     }
 
@@ -214,12 +212,6 @@ mod filters {
     fn with_app(app: App) -> impl Filter<Extract = (App,), Error = Infallible> + Clone {
         warp::any().map(move || app.clone())
     }
-
-    #[derive(Debug, Deserialize)]
-    pub struct SyncQuery {
-        pub game_id: String,
-        pub player_id: Option<Uuid>,
-    }
 }
 
 mod handlers {
@@ -237,7 +229,9 @@ mod handlers {
     use warp::ws::Message;
 
     use super::{App, PlayerConn};
-    use crate::{message, IncomingEvent, IncomingEventBody, OutgoingEvent, OutgoingEventBody};
+    use crate::{
+        message, IncomingEvent, IncomingEventBody, OutgoingEvent, OutgoingEventBody, SyncQuery,
+    };
 
     /// Our global unique conn id counter.
     static NEXT_CONN_ID: AtomicUsize = AtomicUsize::new(1);
@@ -264,23 +258,18 @@ mod handlers {
         }
     }
 
-    pub async fn sync(
-        websocket: warp::filters::ws::WebSocket,
-        app: App,
-        game_id: String,
-        maybe_player_id: Option<Uuid>,
-    ) {
-        let player_id = maybe_player_id.unwrap_or(Uuid::new_v4());
+    pub async fn sync(websocket: warp::filters::ws::WebSocket, app: App, query: SyncQuery) {
+        let player_id = query.player_id.unwrap_or(Uuid::new_v4());
         let conn_id = NEXT_CONN_ID.fetch_add(1, Ordering::Relaxed);
-        if maybe_player_id.is_some() {
+        if query.player_id.is_some() {
             info!(
                 "Existing player {} in game {} conn={}",
-                player_id, game_id, conn_id
+                player_id, query.game_id, conn_id
             );
         } else {
             info!(
                 "New player {} in game {} conn={}",
-                player_id, game_id, conn_id
+                player_id, query.game_id, conn_id
             );
         }
 
@@ -300,8 +289,9 @@ mod handlers {
             app: app.clone(),
             conn: PlayerConn { id: conn_id, tx },
             player_id,
-            new_player: maybe_player_id.is_none(),
-            game_id,
+            player_nickname: query.nickname,
+            new_player: query.player_id.is_none(),
+            game_id: query.game_id,
         };
 
         player_lifecycle.init().await;
@@ -327,6 +317,7 @@ mod handlers {
         app: App,
         conn: PlayerConn,
         player_id: Uuid,
+        player_nickname: Option<String>,
         new_player: bool,
         game_id: String,
     }
@@ -339,7 +330,11 @@ mod handlers {
             app.connections.insert(self.player_id, self.conn.clone());
             app.exited_players.remove(&self.player_id);
 
-            let (game, player) = app.games.add_player(&self.game_id, self.player_id.clone());
+            let (game, player) = app.games.add_player(
+                &self.game_id,
+                self.player_id.clone(),
+                self.player_nickname.clone(),
+            );
 
             if self.new_player {
                 // Send this player ids only if it was new
@@ -352,7 +347,7 @@ mod handlers {
                     .expect("Send player info");
             }
 
-            // Send game info
+            // TODO: Send game info to all players
             self.conn
                 .tx
                 .send(message(OutgoingEvent {
@@ -371,8 +366,6 @@ mod handlers {
                     }))
                     .expect("Send segment");
             });
-
-            // TODO: notify other players about new player
 
             log::debug!("Player {} initialized", self.player_id);
         }
@@ -615,4 +608,11 @@ enum OutgoingEventBody {
     },
     ClearDrawing {},
     Pong,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SyncQuery {
+    pub game_id: String,
+    pub player_id: Option<Uuid>,
+    pub nickname: Option<String>,
 }
