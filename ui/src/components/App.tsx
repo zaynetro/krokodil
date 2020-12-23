@@ -38,6 +38,11 @@ class App extends Component<Props, State> {
     this.board!.undo();
   }
 
+  componentDidUpdate() {
+    // Resize board after potential dom update
+    this.board?.resize();
+  }
+
   componentDidCatch(error: Error) {
     console.log('Failed to render App', error);
   }
@@ -60,11 +65,6 @@ class App extends Component<Props, State> {
           connecting: false,
           error: null,
         });
-
-        // Resize board after it is mounted.
-        setTimeout(() => {
-          this.board?.resize();
-        }, 200);
       }
 
       // DB has changed trigger a render
@@ -164,11 +164,17 @@ class App extends Component<Props, State> {
           <canvas ref={this.setBoardRef}></canvas>
         </div>
 
-        {!this.isPlayerDrawing() && (
+        <div style={{
+          // We alter visibility instead of not rendering it so that
+          // our canvas size will stay the same.
+          // If we remove this block then our canvas will grow to occupy
+          // its space.
+          visibility: this.isPlayerDrawing() ? 'hidden' : 'visible'
+        }}>
           <GuessWord
             onGuess={(word) => db.guessWord(word)}
             onAskTip={() => db.askWordTip()} />
-        )}
+        </div>
       </main>
     )
   }

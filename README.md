@@ -41,6 +41,7 @@ Contains of
     * Atm it is impossible to continue if you don't know the word
 * [ ] Fail after 2 failed attempts
 * [ ] Allow changing nickname
+* [ ] Allow drawing dots
 
 
 ## Build packs

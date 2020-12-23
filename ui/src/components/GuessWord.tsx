@@ -28,26 +28,23 @@ const GuessWord = (props: Props) => {
           }
         }
       }}>
-      <div>
-        <label>
-          <span>Guess word:</span>
-          <input
-            type="text"
-            class={error.length ? styles.error : ''}
-            onChange={(e) => {
-              const word = (e.target as HTMLInputElement).value || '';
-              setWord(word);
-              setError('');
-            }}
-            placeholder={tip}
-            value={word} />
-          <button type="submit">
-            Guess
-          </button>
-        </label>
-      </div>
+      <label>
+        <span>Guess word:</span>
+        <input
+          type="text"
+          class={error.length ? styles.error : ''}
+          onChange={(e) => {
+            const word = (e.target as HTMLInputElement).value || '';
+            setWord(word);
+            setError('');
+          }}
+          placeholder={tip}
+          value={word} />
 
-      <div class={styles.tip}>
+        <button type="submit">
+          Guess
+          </button>
+
         <button
           type="button"
           onClick={async () => {
@@ -58,9 +55,9 @@ const GuessWord = (props: Props) => {
             } catch (e) { }
           }}
         >
-          I need help
+          Help
         </button>
-      </div>
+      </label>
     </form>
   );
 };

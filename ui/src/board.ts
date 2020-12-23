@@ -115,7 +115,8 @@ class Board {
 
     const width = parent.clientWidth;
     const height = parent.clientHeight;
-    const size = Math.min(width, height);
+    // Deduct our border size. Otherwise will be grow out of parent.
+    const size = Math.min(width, height) - 2;
 
     return {
       width: size,
@@ -145,7 +146,7 @@ class Board {
     this.ctx.lineWidth = this.lineWidth;
   }
 
-  stopDrawing(e: MousePosition) {
+  stopDrawing(_e: MousePosition) {
     if (!this.drawing || this.disabled) {
       return;
     }

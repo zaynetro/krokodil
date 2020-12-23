@@ -12,6 +12,7 @@
 }
 
 .guess input {
+    min-width: 70px;
     margin-left: 10px;
     padding: 7px;
     font-size: 16px;
@@ -27,8 +28,4 @@
     margin-left: 5px;
     padding: 7px 10px;
     font-size: 16px;
-}
-
-.tip {
-    margin-top: 20px;
 }
