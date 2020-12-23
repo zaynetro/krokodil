@@ -38,6 +38,15 @@ Contains of
     * Show previously guessed words
 
 
-References:
+## Build packs
+
+* https://github.com/emk/heroku-buildpack-rust
+
+``` sh
+heroku buildpacks:set emk/rust
+heroku buildpacks:add heroku/nodejs
+```
+
+## References:
 
 * Share: https://developer.mozilla.org/en-US/docs/Web/API/Navigator/share
