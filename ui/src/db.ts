@@ -20,6 +20,8 @@ enum MessageType {
   YouAre = 'youAre',
   WrongGuess = 'wrongGuess',
   ClearDrawing = 'clearDrawing',
+  AskWordTip = 'askWordTip',
+  WordTip = 'wordTip',
 }
 
 export enum Color {
@@ -46,7 +48,7 @@ export interface DrawingSegment {
 
 interface Message {
   eventId: string;
-  body: Ping | AddDrawingSegment | DeleteDrawingSegment | SubmitWord | GuessWord;
+  body: Ping | AddDrawingSegment | DeleteDrawingSegment | SubmitWord | GuessWord | AskWordTip;
 }
 
 interface AddDrawingSegment extends DrawingSegment {
@@ -74,9 +76,13 @@ interface GuessWord {
   word: string;
 }
 
+interface AskWordTip {
+  type: MessageType.AskWordTip;
+}
+
 interface Incoming {
   fromEventId: string;
-  body: Pong | Game | AddDrawingSegment | DeleteDrawingSegment | YouAre | WrongGuess | ClearDrawing;
+  body: Pong | Game | AddDrawingSegment | DeleteDrawingSegment | YouAre | WrongGuess | ClearDrawing | WordTip;
 }
 
 interface Ping {
@@ -94,6 +100,11 @@ interface YouAre {
 
 export interface WrongGuess {
   type: MessageType.WrongGuess,
+}
+
+export interface WordTip {
+  type: MessageType.WordTip,
+  tip: string;
 }
 
 interface ClearDrawing {
@@ -429,6 +440,18 @@ export default {
       body: {
         type: MessageType.GuessWord,
         word,
+      },
+    }));
+  },
+
+  /**
+   * Ask a tip.
+   */
+  askWordTip: (): Promise<WordTip> => {
+    return requestMessage(Object.freeze({
+      eventId: eventId(),
+      body: {
+        type: MessageType.AskWordTip,
       },
     }));
   },

@@ -93,7 +93,12 @@ impl Game {
 
     /// Submit a word to draw. Transitions to drawing stage if this player was allowed to do that.
     /// Return true if transitioned.
-    pub fn submit_word(&mut self, submitting_player_id: &Uuid, word: String, canvas: CanvasSize) -> bool {
+    pub fn submit_word(
+        &mut self,
+        submitting_player_id: &Uuid,
+        word: String,
+        canvas: CanvasSize,
+    ) -> bool {
         match self.stage {
             GameStage::PlayerChoosing { player_id } if submitting_player_id == &player_id => {
                 // continue
@@ -121,6 +126,7 @@ impl Game {
             GameStage::PlayerDrawing { word, .. }
                 if word.to_lowercase() == guess.to_lowercase() =>
             {
+                // TODO: populate history
                 self.stage = GameStage::PlayerChoosing {
                     player_id: guessing_player_id.clone(),
                 };
@@ -130,6 +136,29 @@ impl Game {
                 // Wrong guess or state
                 false
             }
+        }
+    }
+
+    /// Ask for a tip with a word. Return a tip if
+    pub fn ask_word_tip(&mut self) -> Option<String> {
+        match &self.stage {
+            GameStage::PlayerDrawing { word, .. } => {
+                // Show first letter and last letters with hidden letters in between (e.g "Apple" => "a***e")
+                let word = word.to_lowercase();
+                let help = word
+                    .chars()
+                    .enumerate()
+                    .map(|(i, c)| {
+                        if (i == 0) || (i == word.len() - 1) {
+                            c
+                        } else {
+                            '*'
+                        }
+                    })
+                    .collect();
+                Some(help)
+            }
+            _ => None,
         }
     }
 
@@ -328,7 +357,10 @@ mod tests {
         let player_id = Uuid::new_v4();
         let player_id_2 = Uuid::new_v4();
         let word = "Apple".to_string();
-        let canvas = CanvasSize { width: 100, height: 100, };
+        let canvas = CanvasSize {
+            width: 100,
+            height: 100,
+        };
 
         {
             // Create a game
@@ -355,7 +387,9 @@ mod tests {
             // Submit word as wrong player
             let game = games.find_mut(&game_id);
             assert!(game.is_some());
-            let res = game.unwrap().submit_word(&player_id_2, word.clone(), canvas.clone());
+            let res = game
+                .unwrap()
+                .submit_word(&player_id_2, word.clone(), canvas.clone());
             assert_eq!(false, res);
         }
 
@@ -384,6 +418,14 @@ mod tests {
             assert!(game.is_some());
             let res = game.unwrap().guess_word(&player_id_2, "wrong");
             assert_eq!(false, res);
+        }
+
+        {
+            // Ask word help
+            let game = games.find_mut(&game_id);
+            assert!(game.is_some());
+            let tip = game.unwrap().ask_word_tip();
+            assert_eq!(Some("a***e".to_string()), tip, "tip");
         }
 
         {

@@ -273,9 +273,15 @@ mod handlers {
         let player_id = maybe_player_id.unwrap_or(Uuid::new_v4());
         let conn_id = NEXT_CONN_ID.fetch_add(1, Ordering::Relaxed);
         if maybe_player_id.is_some() {
-            info!("Existing player {} in game {} conn={}", player_id, game_id, conn_id);
+            info!(
+                "Existing player {} in game {} conn={}",
+                player_id, game_id, conn_id
+            );
         } else {
-            info!("New player {} in game {} conn={}", player_id, game_id, conn_id);
+            info!(
+                "New player {} in game {} conn={}",
+                player_id, game_id, conn_id
+            );
         }
 
         // Split the socket into a sender and receive of messages.
@@ -485,6 +491,19 @@ mod handlers {
                     .await;
                     log::debug!("Player {} guessed a word", self.player_id);
                 }
+
+                IncomingEventBody::AskWordTip {} => {
+                    let mut app = self.app.lock().await;
+                    let game = app.games.find_mut(&self.game_id).expect("Game");
+                    if let Some(tip) = game.ask_word_tip() {
+                        let _ = self.conn.tx.send(message(OutgoingEvent {
+                            from_event_id: event.event_id,
+                            body: OutgoingEventBody::WordTip { tip },
+                        }));
+                    }
+
+                    log::debug!("Player {} asked a tip", self.player_id);
+                }
             }
         }
 
@@ -493,11 +512,7 @@ mod handlers {
             let mut app = self.app.lock().await;
             if let Entry::Occupied(e) = app.connections.entry(self.player_id) {
                 if e.get().id == self.conn.id {
-                    log::debug!(
-                        "Exiting player {} conn={}",
-                        self.player_id,
-                        self.conn.id
-                    );
+                    log::debug!("Exiting player {} conn={}", self.player_id, self.conn.id);
                     e.remove();
                 }
             }
@@ -568,6 +583,7 @@ enum IncomingEventBody {
     GuessWord {
         word: String,
     },
+    AskWordTip {},
     Ping,
 }
 
@@ -594,6 +610,9 @@ enum OutgoingEventBody {
         player: Player,
     },
     WrongGuess {},
+    WordTip {
+        tip: String,
+    },
     ClearDrawing {},
     Pong,
 }

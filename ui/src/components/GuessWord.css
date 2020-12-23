@@ -7,7 +7,8 @@
 }
 
 .guess span {
-    padding-top: 8px;
+    padding-top: 6px;
+    font-size: 18px;
 }
 
 .guess input {
@@ -26,4 +27,8 @@
     margin-left: 5px;
     padding: 7px 10px;
     font-size: 16px;
+}
+
+.tip {
+    margin-top: 20px;
 }

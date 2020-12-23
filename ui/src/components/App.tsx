@@ -156,7 +156,9 @@ class App extends Component<Props, State> {
         </div>
 
         {!this.isPlayerDrawing() && (
-          <GuessWord onGuess={(word) => db.guessWord(word)} />
+          <GuessWord
+            onGuess={(word) => db.guessWord(word)}
+            onAskTip={() => db.askWordTip()} />
         )}
       </main>
     )

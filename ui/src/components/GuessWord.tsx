@@ -1,14 +1,16 @@
 import { useState } from 'preact/hooks';
-import { WrongGuess } from '../db';
+import { WrongGuess, WordTip } from '../db';
 
 import styles from './GuessWord.css';
 
 interface Props {
   onGuess: (word: string) => Promise<WrongGuess>;
+  onAskTip: () => Promise<WordTip>;
 }
 
 const GuessWord = (props: Props) => {
   const [word, setWord] = useState('');
+  const [tip, setTip] = useState('');
   const [error, setError] = useState('');
 
   return (
@@ -26,23 +28,39 @@ const GuessWord = (props: Props) => {
           }
         }
       }}>
-      <label>
-        <span>Guess word:</span>
-        <input
-          type="text"
-          class={error.length ? styles.error : ''}
-          onChange={(e) => {
-            const word = (e.target as HTMLInputElement).value || '';
-            setWord(word);
-            if (!word.length) {
+      <div>
+        <label>
+          <span>Guess word:</span>
+          <input
+            type="text"
+            class={error.length ? styles.error : ''}
+            onChange={(e) => {
+              const word = (e.target as HTMLInputElement).value || '';
+              setWord(word);
               setError('');
-            }
-          }}
-          value={word} />
-        <button type="submit">
-          Guess
+            }}
+            placeholder={tip}
+            value={word} />
+          <button type="submit">
+            Guess
           </button>
-      </label>
+        </label>
+      </div>
+
+      <div class={styles.tip}>
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              const tip = await props.onAskTip();
+              setTip(tip.tip);
+              setWord('');
+            } catch (e) { }
+          }}
+        >
+          I need help
+        </button>
+      </div>
     </form>
   );
 };
