@@ -33,7 +33,7 @@ const GuessWord = (props: Props) => {
         <input
           type="text"
           class={error.length ? styles.error : ''}
-          onChange={(e) => {
+          onInput={(e) => {
             const word = (e.target as HTMLInputElement).value || '';
             setWord(word);
             setError('');

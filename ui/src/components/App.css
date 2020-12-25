@@ -118,3 +118,7 @@ main {
 .players {
     margin-top: 30px;
 }
+
+.guess {
+    height: 70px;
+}

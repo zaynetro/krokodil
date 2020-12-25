@@ -19,12 +19,12 @@ const PickWord = (props: Props) => {
         <div class={styles.word}>
           <input
             type="text"
-            onChange={(e) => setWord((e.target as HTMLInputElement).value || '')}
+            onInput={(e) => setWord((e.target as HTMLInputElement).value || '')}
             value={word} />
 
           <button type="submit">
             Submit
-                  </button>
+          </button>
         </div>
       </label>
     </form>

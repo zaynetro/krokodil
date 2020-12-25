@@ -164,16 +164,12 @@ class App extends Component<Props, State> {
           <canvas ref={this.setBoardRef}></canvas>
         </div>
 
-        <div style={{
-          // We alter visibility instead of not rendering it so that
-          // our canvas size will stay the same.
-          // If we remove this block then our canvas will grow to occupy
-          // its space.
-          visibility: this.isPlayerDrawing() ? 'hidden' : 'visible'
-        }}>
-          <GuessWord
-            onGuess={(word) => db.guessWord(word)}
-            onAskTip={() => db.askWordTip()} />
+        <div class={styles.guess}>
+          {!this.isPlayerDrawing() && (
+            <GuessWord
+              onGuess={(word) => db.guessWord(word)}
+              onAskTip={() => db.askWordTip()} />
+          )}
         </div>
       </main>
     )
