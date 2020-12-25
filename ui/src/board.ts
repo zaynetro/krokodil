@@ -151,6 +151,16 @@ class Board {
       return;
     }
 
+    // If there is only one point it means that mouse was
+    // released without moving it. In this case draw a dot.
+    if (this.currentPoints.length === 1) {
+      const first = this.currentPoints[0];
+      this.currentPoints.push({
+        x: first.x + 1,
+        y: first.y + 1,
+      });
+    }
+
     const segment = {
       id: segmentId(),
       stroke: this.color,

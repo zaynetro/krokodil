@@ -29,19 +29,24 @@ Contains of
 * [x] Figure out what is wrong with my Typescript/preact setup
 * [x] Use personal email address in Git
 * [x] Test mobile device
-* [ ] Tests
+* [x] Allow drawing dots
+* [x] Ask for help with a word
+    * Atm it is impossible to continue if you don't know the word
+* [x] Show previously guessed words
 
 * [ ] Get feedback
 * [ ] Improve styling and colors
-* [x] Show previously guessed words
 * [ ] Redirect to https on Heroku
     * https://help.heroku.com/J2R1S4T8/can-heroku-force-an-application-to-use-ssl-tls
 * [ ] Add submit drawing button
-* [x] Ask for help with a word
-    * Atm it is impossible to continue if you don't know the word
-* [ ] Fail after 2 failed attempts
+    * Or that drawing is complete. We can show a green check mark 
+* [ ] Fail after 2 failed attempts?
 * [ ] Allow changing nickname
-* [ ] Allow drawing dots
+    * How to let players know that they nickname could be edited
+    * Generate unique slugs? Or use random animals?
+* [ ] Tests
+    * UI (how?)
+    * Backend (integration test)
 
 
 ## Build packs
